@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: pallet-tracker
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        value: 9244174522:AAGkzS0LUFeZPSYkN_0fBUN7iwga0LKi1lc
+      - key: PORT
+        value: 10000
+
