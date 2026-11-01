@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Облік піддонів</title>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      background-color: var(--tg-theme-bg-color, #0f172a);
+      color: var(--tg-theme-text-color, #f8fafc);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    input, button, select {
+      user-select: auto;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .card-glass {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-24 text-slate-100 flex flex-col items-center">
+
+  <!-- Container -->
+  <div class="w-full max-w-md px-4 pt-3 flex flex-col gap-4">
+
+    <!-- Top Bar -->
+    <header class="flex items-center justify-between py-2 border-b border-slate-800">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">📦</span>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-wide">Облік Піддонів</h1>
+          <span class="text-xs text-amber-400 font-medium px-2 py-0.5 rounded-full bg-amber-950/60 border border-amber-800/50">
+            Тип: Малі
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="user-badge" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700 font-medium">
+          👤 Користувач
+        </span>
+        <button onclick="switchTab('settings')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Stock Card (Always Visible) -->
+    <div class="card-glass rounded-2xl p-5 shadow-xl relative overflow-hidden">
+      <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-xl pointer-events-none"></div>
+      
+      <div class="flex justify-between items-start">
+        <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Загальний остаток на складі</span>
+        <span class="text-xs text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded-full font-medium">
+          В наявності
+        </span>
+      </div>
+
+      <div class="mt-2 flex items-baseline gap-2">
+        <span id="current-stock" class="text-4xl font-extrabold tracking-tight text-white">0</span>
+        <span class="text-slate-400 font-medium">шт.</span>
+      </div>
+
+      <!-- Quick stats row -->
+      <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-800 text-xs">
+        <div class="bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
+          <div class="text-slate-400">🔨 Сьогодні набито:</div>
+          <div class="text-sm font-bold text-emerald-400 mt-0.5">
+            <span id="today-total">0</span> шт.
+          </div>
+          <div class="text-[10px] text-slate-400 mt-0.5">
+            Л: <span id="today-lyubota">0</span> | Г: <span id="today-galkin">0</span>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
+          <div class="text-slate-400">🚚 Сьогодні відвантаж.:</div>
+          <div class="text-sm font-bold text-amber-400 mt-0.5">
+            <span id="today-shipped">0</span> шт.
+          </div>
+          <div class="text-[10px] text-slate-400 mt-0.5">
+            Готово до відправки
+          </div>
+        </div>
+      </div>
+
+      <!-- Share Button -->
+      <button onclick="shareReport()" class="w-full mt-3 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] transition font-semibold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/30">
+        <span>📤</span>
+        <span>Поділитися щоденним звітом</span>
+      </button>
+    </div>
+
+    <!-- 15 Working Days Stats Card -->
+    <div class="card-glass rounded-2xl p-4 shadow-lg border border-slate-800">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs uppercase font-bold text-slate-300 tracking-wider flex items-center gap-1.5">
+          <span>📈</span>
+          <span>Набито за 15 роб. днів</span>
+        </h2>
+        <span id="days-count-badge" class="text-[11px] font-semibold text-blue-400 bg-blue-950/60 border border-blue-800/50 px-2 py-0.5 rounded-full">
+          0 днів
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <!-- Lyubota -->
+        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+          <div class="text-xs text-slate-400 font-medium">Любота В.</div>
+          <div class="text-xl font-bold text-sky-400 mt-1">
+            <span id="fifteen-lyubota">0</span>
+            <span class="text-xs font-normal text-slate-400">шт.</span>
+          </div>
+        </div>
+
+        <!-- Galkin -->
+        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+          <div class="text-xs text-slate-400 font-medium">Галкін В.</div>
+          <div class="text-xl font-bold text-indigo-400 mt-1">
+            <span id="fifteen-galkin">0</span>
+            <span class="text-xs font-normal text-slate-400">шт.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-2.5 pt-2 border-t border-slate-800/80 flex justify-between items-center text-xs text-slate-400">
+        <span>Разом за період:</span>
+        <span class="font-bold text-slate-200"><span id="fifteen-total">0</span> шт.</span>
+      </div>
+    </div>
+
+    <!-- TAB: PRODUCTION (ВИГОТОВИВ) -->
+    <div id="tab-production" class="tab-content flex flex-col gap-3">
+      <div class="card-glass rounded-2xl p-4 shadow-lg border border-slate-800">
+        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+          <span>🔨</span>
+          <span>Внести набиті піддони</span>
+        </h3>
+
+        <form id="form-production" onsubmit="submitProduction(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Дата</label>
+            <input type="date" id="prod-date" required
+                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-sky-300 mb-1">Любота В. (шт)</label>
+              <input type="number" id="prod-lyubota" min="0" step="1" placeholder="0" inputmode="numeric"
+                     class="w-full bg-slate-900 border border-sky-800/60 rounded-xl px-3 py-2.5 text-base font-semibold text-white focus:outline-none focus:border-sky-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-indigo-300 mb-1">Галкін В. (шт)</label>
+              <input type="number" id="prod-galkin" min="0" step="1" placeholder="0" inputmode="numeric"
+                     class="w-full bg-slate-900 border border-indigo-800/60 rounded-xl px-3 py-2.5 text-base font-semibold text-white focus:outline-none focus:border-indigo-500">
+            </div>
+          </div>
+
+          <button type="submit" id="btn-save-prod"
+                  class="w-full mt-2 py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] transition font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950">
+            <span>💾</span>
+            <span>Зберегти набиті піддони</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB: SHIPMENT (ОТГРУЗКА) -->
+    <div id="tab-shipment" class="tab-content hidden flex flex-col gap-3">
+      <div class="card-glass rounded-2xl p-4 shadow-lg border border-slate-800">
+        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+          <span>🚚</span>
+          <span>Внести відвантаження</span>
+        </h3>
+
+        <form id="form-shipment" onsubmit="submitShipment(event)" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Дата</label>
+              <input type="date" id="ship-date" required
+                     class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-amber-300 mb-1">Кількість (шт)</label>
+              <input type="number" id="ship-qty" min="1" step="1" required placeholder="0" inputmode="numeric"
+                     class="w-full bg-slate-900 border border-amber-800/60 rounded-xl px-3 py-2.5 text-base font-semibold text-white focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Примітка / Водій / Машина (необов'язково)</label>
+            <input type="text" id="ship-note" placeholder="Напр.: Машина 1234, водій Олег"
+                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+          </div>
+
+          <button type="submit" id="btn-save-ship"
+                  class="w-full mt-2 py-3 bg-amber-600 hover:bg-amber-500 active:scale-[0.98] transition font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-950">
+            <span>🚚</span>
+            <span>Зафіксувати відвантаження</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB: HISTORY (ІСТОРІЯ) -->
+    <div id="tab-history" class="tab-content hidden flex flex-col gap-3">
+      <div class="card-glass rounded-2xl p-4 shadow-lg border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+            <span>📜</span>
+            <span>Журнал операцій</span>
+          </h3>
+          <div class="flex gap-1 text-xs">
+            <button onclick="switchHistorySubTab('shipments')" id="subtab-btn-ship" class="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-medium">
+              Відвантаження
+            </button>
+            <button onclick="switchHistorySubTab('production')" id="subtab-btn-prod" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">
+              Виробництво
+            </button>
+          </div>
+        </div>
+
+        <!-- Shipments History List -->
+        <div id="history-shipments-list" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <div class="text-xs text-slate-500 text-center py-4">Завантаження даних...</div>
+        </div>
+
+        <!-- Production History List -->
+        <div id="history-production-list" class="hidden space-y-2 max-h-72 overflow-y-auto pr-1">
+          <div class="text-xs text-slate-500 text-center py-4">Завантаження даних...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: SETTINGS (НАЛАШТУВАННЯ) -->
+    <div id="tab-settings" class="tab-content hidden flex flex-col gap-3">
+      <div class="card-glass rounded-2xl p-4 shadow-lg border border-slate-800">
+        <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
+          <span>⚙️</span>
+          <span>Початковий залишок на складі</span>
+        </h3>
+        <p class="text-xs text-slate-400 mb-3">
+          Вкажіть кількість піддонів, яка вже була на складі до початку роботи з додатком:
+        </p>
+
+        <form onsubmit="submitInitialStock(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Початковий залишок (шт)</label>
+            <input type="number" id="input-initial-stock" min="0" step="1" required
+                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-base font-semibold text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <button type="submit"
+                  class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 transition font-bold rounded-xl text-sm">
+            Зберегти початковий залишок
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 py-2 flex justify-around items-center z-50">
+    <button onclick="switchTab('production')" id="nav-production"
+            class="nav-btn flex flex-col items-center gap-1 text-blue-400 py-1 px-3">
+      <span class="text-lg">🔨</span>
+      <span class="text-[11px] font-semibold">Виготовив</span>
+    </button>
+
+    <button onclick="switchTab('shipment')" id="nav-shipment"
+            class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 py-1 px-3">
+      <span class="text-lg">🚚</span>
+      <span class="text-[11px] font-medium">Отгрузка</span>
+    </button>
+
+    <button onclick="switchTab('history')" id="nav-history"
+            class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 py-1 px-3">
+      <span class="text-lg">📜</span>
+      <span class="text-[11px] font-medium">Історія</span>
+    </button>
+  </nav>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed top-4 bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold transform -translate-y-20 transition duration-300 z-50 flex items-center gap-2">
+    <span id="toast-icon">✅</span>
+    <span id="toast-msg">Повідомлення</span>
+  </div>
+
+  <script>
+    // Telegram Web App Setup
+    let tg = window.Telegram?.WebApp;
+    let currentUserName = "Користувач";
+
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      try {
+        if (tg.initDataUnsafe?.user) {
+          const u = tg.initDataUnsafe.user;
+          currentUserName = u.first_name + (u.last_name ? (" " + u.last_name) : "");
+          document.getElementById("user-badge").textContent = "👤 " + currentUserName;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Set default dates to today
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById("prod-date").value = todayStr;
+    document.getElementById("ship-date").value = todayStr;
+
+    // Toast helper
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toast-msg");
+      const toastIcon = document.getElementById("toast-icon");
+      
+      toastMsg.textContent = msg;
+      toastIcon.textContent = isError ? "⚠️" : "✅";
+      toast.className = isError 
+        ? "fixed top-4 bg-rose-600 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold transform translate-y-0 transition duration-300 z-50 flex items-center gap-2"
+        : "fixed top-4 bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold transform translate-y-0 transition duration-300 z-50 flex items-center gap-2";
+      
+      setTimeout(() => {
+        toast.style.transform = "-translate-y-20";
+        toast.className = toast.className.replace("translate-y-0", "-translate-y-20");
+      }, 2500);
+    }
+
+    // Tabs navigation
+    function switchTab(tabName) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      const activeTab = document.getElementById("tab-" + tabName);
+      if (activeTab) activeTab.classList.remove("hidden");
+
+      document.querySelectorAll(".nav-btn").forEach(btn => {
+        btn.classList.remove("text-blue-400", "font-semibold");
+        btn.classList.add("text-slate-400");
+      });
+
+      const navBtn = document.getElementById("nav-" + tabName);
+      if (navBtn) {
+        navBtn.classList.remove("text-slate-400");
+        navBtn.classList.add("text-blue-400", "font-semibold");
+      }
+
+      if (tabName === "history") {
+        loadShipmentsHistory();
+        loadProductionHistory();
+      }
+    }
+
+    function switchHistorySubTab(subTab) {
+      const shipList = document.getElementById("history-shipments-list");
+      const prodList = document.getElementById("history-production-list");
+      const shipBtn = document.getElementById("subtab-btn-ship");
+      const prodBtn = document.getElementById("subtab-btn-prod");
+
+      if (subTab === "shipments") {
+        shipList.classList.remove("hidden");
+        prodList.classList.add("hidden");
+        shipBtn.className = "px-2.5 py-1 rounded-lg bg-amber-600 text-white font-medium";
+        prodBtn.className = "px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700";
+        loadShipmentsHistory();
+      } else {
+        shipList.classList.add("hidden");
+        prodList.classList.remove("hidden");
+        prodBtn.className = "px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-medium";
+        shipBtn.className = "px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700";
+        loadProductionHistory();
+      }
+    }
+
+    // Load Summary Data
+    async function fetchSummary() {
+      try {
+        const res = await fetch("/api/summary?date=" + encodeURIComponent(todayStr));
+        const json = await res.json();
+        if (json.ok) {
+          updateUI(json.data);
+        }
+      } catch (err) {
+        console.error("Fetch summary error:", err);
+      }
+    }
+
+    function updateUI(data) {
+      document.getElementById("current-stock").textContent = Number(data.current_stock).toLocaleString('uk-UA');
+      document.getElementById("today-total").textContent = data.today.total;
+      document.getElementById("today-lyubota").textContent = data.today.lyubota;
+      document.getElementById("today-galkin").textContent = data.today.galkin;
+      document.getElementById("today-shipped").textContent = data.today.shipped;
+
+      const s15 = data.stats_15d;
+      document.getElementById("fifteen-lyubota").textContent = Number(s15.lyubota).toLocaleString('uk-UA');
+      document.getElementById("fifteen-galkin").textContent = Number(s15.galkin).toLocaleString('uk-UA');
+      document.getElementById("fifteen-total").textContent = Number(s15.total).toLocaleString('uk-UA');
+      document.getElementById("days-count-badge").textContent = s15.days_count + " роб. днів";
+
+      document.getElementById("input-initial-stock").value = data.initial_stock || 0;
+    }
+
+    // Submit Production
+    async function submitProduction(e) {
+      e.preventDefault();
+      const dateVal = document.getElementById("prod-date").value;
+      const lyubotaVal = parseInt(document.getElementById("prod-lyubota").value || "0");
+      const galkinVal = parseInt(document.getElementById("prod-galkin").value || "0");
+
+      if (lyubotaVal === 0 && galkinVal === 0) {
+        showToast("Введіть кількість хоча б для одного майстра!", true);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/production", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: dateVal,
+            lyubota: lyubotaVal,
+            galkin: galkinVal,
+            author: currentUserName
+          })
+        });
+        const json = await res.json();
+        if (json.ok) {
+          showToast("Виробництво успішно збережено!");
+          document.getElementById("prod-lyubota").value = "";
+          document.getElementById("prod-galkin").value = "";
+          updateUI(json.summary);
+        } else {
+          showToast("Помилка збереження", true);
+        }
+      } catch (err) {
+        showToast("Мережева помилка", true);
+      }
+    }
+
+    // Submit Shipment
+    async function submitShipment(e) {
+      e.preventDefault();
+      const dateVal = document.getElementById("ship-date").value;
+      const qtyVal = parseInt(document.getElementById("ship-qty").value || "0");
+      const noteVal = document.getElementById("ship-note").value;
+
+      if (qtyVal <= 0) {
+        showToast("Кількість має бути більшою за 0!", true);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/shipment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: dateVal,
+            quantity: qtyVal,
+            note: noteVal,
+            author: currentUserName
+          })
+        });
+        const json = await res.json();
+        if (json.ok) {
+          showToast("Відвантаження зафіксовано!");
+          document.getElementById("ship-qty").value = "";
+          document.getElementById("ship-note").value = "";
+          updateUI(json.summary);
+        } else {
+          showToast("Помилка збереження", true);
+        }
+      } catch (err) {
+        showToast("Мережева помилка", true);
+      }
+    }
+
+    // Submit Initial Stock
+    async function submitInitialStock(e) {
+      e.preventDefault();
+      const stock = parseInt(document.getElementById("input-initial-stock").value || "0");
+      try {
+        const res = await fetch("/api/initial-stock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stock: stock })
+        });
+        const json = await res.json();
+        if (json.ok) {
+          showToast("Початковий залишок оновлено!");
+          updateUI(json.summary);
+          switchTab("production");
+        }
+      } catch (err) {
+        showToast("Помилка оновлення", true);
+      }
+    }
+
+    // Load History
+    async function loadShipmentsHistory() {
+      const container = document.getElementById("history-shipments-list");
+      try {
+        const res = await fetch("/api/shipments?limit=30");
+        const json = await res.json();
+        if (json.ok && json.data.length > 0) {
+          container.innerHTML = json.data.map(item => `
+            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs">
+              <div>
+                <div class="font-bold text-amber-400 text-sm">🚚 ${item.quantity} шт.</div>
+                <div class="text-slate-400 mt-0.5">📅 ${item.date} ${item.note ? ('• ' + item.note) : ''}</div>
+                <div class="text-[10px] text-slate-500">Вніс: ${item.author}</div>
+              </div>
+              <button onclick="deleteShipmentItem(${item.id})" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-950/40 border border-rose-900/40">
+                🗑️
+              </button>
+            </div>
+          `).join("");
+        } else {
+          container.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Відвантажень поки немає</div>';
+        }
+      } catch (e) {
+        container.innerHTML = '<div class="text-xs text-rose-400 text-center py-4">Помилка завантаження</div>';
+      }
+    }
+
+    async function loadProductionHistory() {
+      const container = document.getElementById("history-production-list");
+      try {
+        const res = await fetch("/api/production?limit=30");
+        const json = await res.json();
+        if (json.ok && json.data.length > 0) {
+          container.innerHTML = json.data.map(item => `
+            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs">
+              <div>
+                <div class="font-bold text-emerald-400 text-sm">🔨 Разом: ${item.total} шт.</div>
+                <div class="text-slate-300 mt-0.5">Любота: ${item.lyubota} | Галкін: ${item.galkin}</div>
+                <div class="text-slate-400">📅 ${item.date} • Вніс: ${item.author}</div>
+              </div>
+              <button onclick="deleteProductionItem(${item.id})" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-950/40 border border-rose-900/40">
+                🗑️
+              </button>
+            </div>
+          `).join("");
+        } else {
+          container.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Записів виробництва поки немає</div>';
+        }
+      } catch (e) {
+        container.innerHTML = '<div class="text-xs text-rose-400 text-center py-4">Помилка завантаження</div>';
+      }
+    }
+
+    async function deleteShipmentItem(id) {
+      if (!confirm("Видалити цей запис відвантаження?")) return;
+      try {
+        const res = await fetch("/api/shipment/" + id, { method: "DELETE" });
+        if (res.ok) {
+          showToast("Запис видалено");
+          loadShipmentsHistory();
+          fetchSummary();
+        }
+      } catch (e) {
+        showToast("Помилка видалення", true);
+      }
+    }
+
+    async function deleteProductionItem(id) {
+      if (!confirm("Видалити цей запис виробництва?")) return;
+      try {
+        const res = await fetch("/api/production/" + id, { method: "DELETE" });
+        if (res.ok) {
+          showToast("Запис видалено");
+          loadProductionHistory();
+          fetchSummary();
+        }
+      } catch (e) {
+        showToast("Помилка видалення", true);
+      }
+    }
+
+    // Share Report
+    async function shareReport() {
+      try {
+        const res = await fetch("/api/report?date=" + encodeURIComponent(todayStr));
+        const json = await res.json();
+        if (json.ok && json.report) {
+          const report = json.report;
+          
+          if (tg && tg.openTelegramLink) {
+            // Open native Telegram share sheet
+            const shareUrl = "https://t.me/share/url?url=" + encodeURIComponent(report);
+            tg.openTelegramLink(shareUrl);
+          } else {
+            // Fallback: Copy to clipboard
+            await navigator.clipboard.writeText(report);
+            showToast("Звіт скопійовано в буфер обміну!");
+          }
+        }
+      } catch (e) {
+        showToast("Не вдалося сформувати звіт", true);
+      }
+    }
+
+    // Initial load
+    fetchSummary();
+  </script>
+</body>
+</html>
+
